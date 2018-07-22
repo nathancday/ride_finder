@@ -5,7 +5,7 @@ This is a Shiny app, designed as a prototype for a unified public transit front 
 
 This is part of the [CID 2018 Regional Transit Challenge](https://github.com/Smart-Cville/CID-2018-Regional-Transit-Challenge).
 
-[Live Version](https://github.com/Smart-Cville/CID-2018-Regional-Transit-Challenge)
+[Live Version](https://nathanday.shinyapps.io/ride_finder/)
 Current status: The app will find the closest (as the crow flies) CAT stop only. JAUNT polygons coming soon
 
 This project is under active development, if you want to get involved here are some things it could use:
@@ -15,7 +15,8 @@ This project is under active development, if you want to get involved here are s
     + See [this R file](https://github.com/Smart-Cville/CID-2018-Regional-Transit-Challenge/blob/master/jaunt_leaflet.R)
 * UI Enhancements
     + Make the app look cooler and act cooler
-    + Shiny can use [custom CSS](https://shiny.rstudio.com/articles/css.html)
+    + Shiny Dashboard has a lot of nicer layouts we could use.
+    + Shiny can also use [custom CSS](https://shiny.rstudio.com/articles/css.html)
     + And [custom Javascript](https://shiny.rstudio.com/articles/packaging-javascript.html)
 * Alternate distance calculations
     + Get actual walking/biking distances to nearest transit access points
