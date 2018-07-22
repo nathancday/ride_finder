@@ -8,7 +8,7 @@ library(sf)
 library(magrittr)
 library(tidyverse)
 
-set_key("AIzaSyDlERX-_Ii1n9rZdYgAhxOY9l7cr8SX2jE")
+set_key(Sys.getenv("GOOGLE_API"))
 
 
 # respond on ENTER
