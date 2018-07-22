@@ -18,9 +18,11 @@ sf %<>%
 
 jsf <- jaunt_sf[which.min(st_distance(sf, jaunt_sf)),]
 
+jsf <- st_zm(jsf)
 
+st_zm(jsf)
 leaflet() %>%
-    addPolygons(data = jsf, options = NULL)
+    addPolygons(data = jsf)
 
 mapview(jsf)
 

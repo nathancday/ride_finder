@@ -25,12 +25,14 @@ Shiny.onInputChange("keyPressed", Math.random());
 cat_sf <- read.table(file="https://raw.githubusercontent.com/Smart-Cville/CID-2018-Regional-Transit-Challenge/master/data/CAT_2017_08_GTFS/stops.txt", 
                      sep=",", header = T, stringsAsFactors = F) %>%
     select(stop_name, stop_lon, stop_lat) %>%
-    st_as_sf(coords = c("stop_lon", "stop_lat"))
+    st_as_sf(coords = c("stop_lon", "stop_lat")) %>%
+    slice(-82)
 
 jaunt_sf <- st_read("https://raw.githubusercontent.com/Smart-Cville/CID-2018-Regional-Transit-Challenge/master/data/doc.kml",
                     stringsAsFactors = F) %>%
     select(name = Name, geometry) %>%
-    mutate(shape_id = 1:26) # has CRS already
+    mutate(shape_id = 1:26) %>% # has CRS already
+    st_zm() # drop Z dim (https://gis.stackexchange.com/questions/253898/adding-a-linestring-by-st-read-in-shiny-leaflet)
 
 cat_sf %<>% st_set_crs(st_crs(jaunt_sf))
 
@@ -44,13 +46,17 @@ ui <- fluidPage(
     sidebarLayout(
         sidebarPanel(
             h4("Welcome to Ride-Finder, where are you?"),
-            textInput("address", NULL, "600 E Market St"),
-            h4("This is where I think you are,"),
+            textInput("address", NULL, "Green County"),
+            h6("^^ Press ENTER ^^"),
+            h5("This is where the computer thinks you are:"),
             textOutput("location"),
-            h4("And this is the closest CAT stop,"),
-            textOutput("cat_stop"),
-            h4("And this is the closes JAUNT service area,"),
-            textOutput("jaunt_area")
+            wellPanel( style = "margin-top: 20px",
+                radioButtons("services", "What option would you like to see?",
+                            c("JAUNT", "CAT"),
+                            "JAUNT"),
+                h5("The closest access to you is:"),
+                textOutput("closest_access")
+            )
         ),
         mainPanel(
             leafletOutput("map", height = 600)
@@ -69,7 +75,7 @@ server <- function(input, output) {
        values$address <- input$address
        
        values$location <- values$address %>%
-           paste("Charlottesville VA")
+           paste("VA")
        
        values$geocode <- tibble(address = values$location) %>%
            re_geocode() %>%
@@ -81,22 +87,79 @@ server <- function(input, output) {
        values$sf <- values$geocode %>%
            mutate_at(vars(lon, lat), as.numeric) %>%
            st_as_sf(coords = c("lon", "lat"), crs = st_crs(jaunt_sf))
+   })
+   
+   output$map <- renderLeaflet({
        
-       ### Closest options ---------------------------------------------------
-       cat_min_idx <- which.min(st_distance(values$sf, cat_sf))
-       values$closest_cat <- cat_sf[cat_min_idx,]
-       values$remain_cat <- cat_sf[-cat_min_idx,]
+       req(values$sf)
+       req(values$location)
        
-       jaunt_min_idx <- which.min(st_distance(values$sf, jaunt_sf))
-       values$closest_jaunt <- jaunt_sf[jaunt_min_idx,]
+       leaflet() %>%
+           addProviderTiles(provider = "OpenStreetMap.HOT") %>%
+           addCircleMarkers(data = values$sf, radius = 20)
+   })
+   
+   observe({
+       x <- input$services
        
-       values$view <- st_union(values$sf, values$closest_cat) %>%
-           st_bbox() %>%
-           unclass() %>%
-           unname()
+       if ("CAT" == x) {
+           req(values$sf)
+           
+           ### Closest options ---------------------------------------------------
+           print(st_distance(values$sf, cat_sf))
+           
+           cat_min_idx <- which.min(st_distance(values$sf, cat_sf))
+           print(cat_min_idx)
+           values$closest_cat <- cat_sf[cat_min_idx,]
+           
+           # print(values$closest_cat)
+           
+           values$remain_cat <- cat_sf[-cat_min_idx,]
+           
+           output$closest_access <- renderText({
+               values$closest_cat$stop_name
+           })
+           
+           values$view <- st_union(values$sf, values$closest_cat) %>%
+               st_bbox() %>%
+               unclass() %>%
+               unname()
+           
+           leafletProxy("map") %>%
+               clearShapes() %>%
+               addCircleMarkers(data = values$closest_cat, radius = 20, color = "green") %>%
+               addCircleMarkers(data = values$remain_cat, radius = 5, color = "green") %>%
+               fitBounds(values$view[1], values$view[2], values$view[3], values$view[4])
+       }
+       
+       if ("JAUNT" == input$services) {
+           req(values$sf)
+           
+           ### Closest options ---------------------------------------------------
+           jaunt_min_idx <- which.min(st_distance(values$sf, jaunt_sf))
+           
+           values$closest_jaunt <- jaunt_sf[jaunt_min_idx,]
+           
+           output$closest_access <- renderText({
+               values$closest_jaunt$name
+           })
+           
+           values$view <- values$closest_jaunt %>%
+               st_bbox() %>%
+               unclass() %>%
+               unname()
+           
+           leafletProxy("map") %>%
+               clearMarkers() %>%
+               addPolygons(data = values$closest_jaunt, color = "red") %>%
+               addCircleMarkers(data = values$sf, radius = 20) %>%
+               fitBounds(values$view[1], values$view[2], values$view[3], values$view[4])
+       }
+       
    })
    
    output$location <- renderText({
+       req(values$geocode)
        values$geocode$formatted_address
        })
    
@@ -108,19 +171,6 @@ server <- function(input, output) {
        req(values$closest_jaunt)
        values$closest_jaunt$name
    })
-   
-   ### Leaflet -------------------------------------------------------------
-   output$map <- renderLeaflet({
-       
-       req(values$sf)
-       req(values$location)
-       
-       mapview(values$closest_jaunt, color = "red", col.regions = "red", alpha.regions = .2)@map %>%
-           addCircleMarkers(data = values$remain_cat, radius = 5, color = "green") %>%
-           addCircleMarkers(data = values$sf, radius = 20) %>%
-           addCircleMarkers(data = values$closest_cat, radius = 20, color = "green") %>%
-           fitBounds(values$view[1], values$view[2], values$view[3], values$view[4])
-       })
    
 }
 
