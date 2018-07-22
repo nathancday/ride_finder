@@ -1,14 +1,14 @@
 
 library(cpdcrimedata)
 library(shiny)
-library(ggmap)
-library(gmapsdistance)
+# library(gmapsdistance)
+library(googleway)
 library(leaflet)
 library(sf)
 library(magrittr)
 library(tidyverse)
 
-set.api.key("AIzaSyAaSDoaS1Xy0q3v7O920h_RKNR5gIi8qX0")
+set_key("")
 
 
 # respond on ENTER
@@ -83,7 +83,10 @@ server <- function(input, output) {
            unname()
    })
    
-   output$location <- renderText({values$geocode$formatted_address})
+   output$location <- renderText({
+       values$geocode$formatted_address
+       })
+   
    output$cat_stop <- renderText({
        req(values$closest_cat)
        values$closest_cat$stop_name

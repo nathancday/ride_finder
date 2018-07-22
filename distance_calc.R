@@ -7,8 +7,6 @@ sf <- readRDS("tst_loc.RDS")
 
 closest <- cat[which.min(st_distance(sf, cat)),]
 
-
-
 library(gmapdistance) # https://cran.r-project.org/web/packages/gmapsdistance/README.html
 # collapse to points format
 as_gmap <- . %>%
