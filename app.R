@@ -2,10 +2,13 @@
 library(cpdcrimedata)
 library(shiny)
 library(ggmap)
+library(gmapsdistance)
 library(leaflet)
 library(sf)
 library(magrittr)
 library(tidyverse)
+
+set.api.key("AIzaSyAaSDoaS1Xy0q3v7O920h_RKNR5gIi8qX0")
 
 
 # respond on ENTER
@@ -60,10 +63,7 @@ server <- function(input, output) {
            paste("Charlottesville VA")
        
        values$geocode <- tibble(address = values$location) %>%
-           re_geocode(retry = 10) %>%
-           mutate(extracted = map(geocode, extract_geocode)) %>%
-           unnest(extracted) %>%
-           select(-matches("geocode"))
+           mutate_geocode(address)
        
        values$sf <- values$geocode %>%
            mutate_at(vars(lon, lat), as.numeric) %>%
