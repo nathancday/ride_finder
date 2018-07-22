@@ -63,19 +63,30 @@ server <- function(input, output) {
            paste("Charlottesville VA")
        
        values$geocode <- tibble(address = values$location) %>%
-           mutate_geocode(address)
+           re_geocode() %>%
+           filter(geocode_good) %>%
+           mutate(extracted = map(geocode, extract_geocode)) %>%
+           select(-matches("geocode")) %>%
+           unnest(extracted)
        
        values$sf <- values$geocode %>%
            mutate_at(vars(lon, lat), as.numeric) %>%
            st_as_sf(coords = c("lon", "lat"))
        
-       values$closest <- cat_sf[which.min(st_distance(values$sf, cat_sf)),]
+       cat_min_idx <- which.min(st_distance(values$sf, cat_sf))
+       values$closest_cat <- cat_sf[cat_min_idx,]
+       values$remain_cat <- cat_sf[-cat_min_idx,]
+       
+       values$view <- st_union(values$sf, values$closest_cat) %>%
+           st_bbox() %>%
+           unclass() %>%
+           unname()
    })
    
-   output$location <- renderText(values$geocode$formatted_address)
+   output$location <- renderText({values$geocode$formatted_address})
    output$cat_stop <- renderText({
-       req(values$closest)
-       values$closest$stop_name
+       req(values$closest_cat)
+       values$closest_cat$stop_name
    })
    
    output$map <- renderLeaflet({
@@ -86,8 +97,10 @@ server <- function(input, output) {
        values$sf %>%
            leaflet() %>%
            addTiles() %>%
+           addCircleMarkers(data = values$remain_cat, radius = 5, color = "green") %>%
            addCircleMarkers(radius = 20) %>%
-           addCircleMarkers(data = values$closest, radius = 20, color = "green")
+           addCircleMarkers(data = values$closest_cat, radius = 20, color = "green") %>%
+           fitBounds(values$view[1], values$view[2], values$view[3], values$view[4])
        })
    
 }
