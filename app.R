@@ -31,6 +31,7 @@ cat_sf <- read.table(file="https://raw.githubusercontent.com/Smart-Cville/CID-20
 
 jaunt_sf <- readRDS("app_data.RDS")
 
+# make CRS match for distance calculations
 cat_sf %<>% st_set_crs(st_crs(jaunt_sf))
 
 
@@ -41,19 +42,16 @@ ui <- fluidPage(
     
     sidebarLayout(
         sidebarPanel(
-            h4("Welcome to JAUNT Ride-Finder"),
-            h5("Where are you?"),
+            h4("Welcome to Ride-Finder 🚌"),
+            h5("Where are you? 📍 (Press ENTER to search)"),
             textInput("address", NULL, "Louisa Airport"),
-            p("^^ Press ENTER ^^"),
             h5("This is where the computer thinks you are:"),
             textOutput("location"),
-            wellPanel( style = "margin-top: 20px",
-                radioButtons("services", "What option would you like to see?",
-                            c("JAUNT", "CAT"),
-                            "JAUNT"),
-                h5("The closest access to you is:"),
-                textOutput("closest_access")
-            )
+            h5("So the closest service area to you is:"),
+            textOutput("closest_access"),
+            h5("Selected route:"),
+            textOutput("chosen_route"),
+            textOutput("tst")
         ),
         mainPanel(
             DTOutput("routes"),
@@ -87,7 +85,6 @@ server <- function(input, output) {
    })
    
    output$map <- renderLeaflet({
-       
        req(values$sf)
        req(values$location)
        
@@ -101,53 +98,24 @@ server <- function(input, output) {
        req(values$sf)
 
       # Closest options ---------------------------------------------------
-       if ("CAT" == x) {
-           min_idx <- which.min(st_distance(values$sf, cat_sf))
-           
-           values$closest <- cat_sf[min_idx,]
-           values$remain <- cat_sf[min_idx,]
-           
-           output$closest_access <- renderText({
-               values$closest_cat$stop_name
-           })
-           
-           # calculate a bounding box; pretty map view default
-           values$view <- st_union(values$sf, values$closest) %>%
-               st_bbox() %>%
-               unclass() %>%
-               unname()
-           
-           # build via leafletProxy() for speed; tiles are always down :)
-           leafletProxy("map") %>%
-               clearShapes() %>%
-               addCircleMarkers(data = values$closest_cat, radius = 20, color = "green") %>%
-               addCircleMarkers(data = values$remain_cat, radius = 5, color = "green") %>%
-               fitBounds(values$view[1], values$view[2], values$view[3], values$view[4])
-       }
-       # in-ellegant but effective RY; perhaps re-factor to DRY?
-       if ("JAUNT" == input$services) {
-           req(values$sf)
-           
-           jaunt_min_idx <- which.min(st_distance(values$sf, jaunt_sf))
-           
-           values$closest <- jaunt_sf[jaunt_min_idx,]
-           
-           output$closest_access <- renderText({
-               values$closest$name
-           })
-           
-           values$view <- values$closest %>%
-               st_bbox() %>%
-               unclass() %>%
-               unname()
-           
-           leafletProxy("map") %>%
-               clearMarkers() %>%
-               addPolygons(data = values$closest, color = "red") %>%
-               addCircleMarkers(data = values$sf, radius = 20) %>%
-               fitBounds(values$view[1], values$view[2], values$view[3], values$view[4])
-       }
+       jaunt_min_idx <- which.min(st_distance(values$sf, jaunt_sf))
        
+       values$closest <- jaunt_sf[jaunt_min_idx,]
+       
+       output$closest_access <- renderText({
+           values$closest$name
+       })
+       
+       values$view <- values$closest %>%
+           st_bbox() %>%
+           unclass() %>%
+           unname()
+       
+       leafletProxy("map") %>%
+           clearMarkers() %>%
+           addPolygons(data = values$closest, color = "red") %>%
+           addCircleMarkers(data = values$sf, radius = 20) %>%
+           fitBounds(values$view[1], values$view[2], values$view[3], values$view[4])
    })
    
    # * geo-coded location -------
@@ -159,14 +127,40 @@ server <- function(input, output) {
    # * available routes table -----
    output$routes <- renderDT({
        req(values$closest)
-       values$closest %>%
+       
+       values$routes <- values$closest %>%
            unnest() %>%
-           select(route_name, destination = to_name, contains("hours")) %>%
-           st_set_geometry(NULL) %>%
-           DT::datatable(options = list(dom = "t"))
-           
+           select(route_name, destination = to_name, contains("hours"))
+       
+       st_set_geometry(values$routes, NULL) %>%
+           DT::datatable(selection = "single", options = list(dom = "t"))
    })
    
+   observe({
+       x <- input$routes_rows_selected
+       req(input$routes_rows_selected)
+       
+       dest <- jaunt_sf[jaunt_sf$name == values$routes$destination[x],]
+       
+       view <- st_union(isolate(values$closest), dest) %>%
+           st_bbox() %>%
+           unclass() %>%
+           unname()
+       
+       print(st_union(values$closest, dest))
+       
+       leafletProxy("map") %>%
+           clearMarkers() %>%
+           clearShapes() %>%
+           addPolygons(data = values$closest, color = "red") %>%
+           addPolygons(data = dest, color = "blue") %>%
+           addCircleMarkers(data = values$sf, radius = 20) %>%
+           fitBounds(view[1], view[2], view[3], view[4])
+   })
+   
+   output$chosen_route <- renderText({
+       values$routes$route_name[input$routes_rows_selected]
+       })
 }
 
 # Run the application 
