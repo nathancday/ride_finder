@@ -133,7 +133,9 @@ server <- function(input, output) {
            select(route_name, destination = to_name, contains("hours"))
        
        st_set_geometry(values$routes, NULL) %>%
-           DT::datatable(selection = "single", options = list(dom = "t"))
+           DT::datatable(caption = "Available routes:",
+                         selection = list(mode = "single", selected = 1),
+                         options = list(dom = "t"))
    })
    
    observe({
