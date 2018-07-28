@@ -88,11 +88,11 @@ rules %<>%
 # keep route options relative to starting polygon (does that make sense?)
 rules %<>%
     nest(-name, .key = "routes")
-map(rules$routes, class)
-
-rules$routes
 
 sf %>%
     inner_join(rules) %>%
     saveRDS("app_data.RDS")
 
+
+sf %>%
+    st_set_geometry(NULL)
