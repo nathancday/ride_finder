@@ -11,7 +11,9 @@ library(sf)
 library(magrittr)
 library(tidyverse)
 
-set_key("AIzaSyAZNIEddNLkNxS6Fy1CMiZaDDr4lf3yOOY")
+set_key(
+    Sys.getenv("GOOGLE_API")
+    )
 
 
 # respond on ENTER
@@ -56,7 +58,7 @@ ui <- fluidPage(
             shinyjs::hidden(
                 div(id = "request",
                     style = "margin-top:20px;",
-                    actionButton("request_btn", "Request a pick up", class = "btn-danger")
+                    actionButton("request_btn", "Request a pick up", class = "btn-danger btn-block")
                 )
             ),
             shinyjs::hidden(
@@ -67,6 +69,10 @@ ui <- fluidPage(
                     # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/#build-inputs
                     textInput("email", "Email"),
                     dateInput("ride_date", "Pick up date"),
+                    selectizeInput(
+                        "fav_driver",
+                        c("Taylor", "Lucas", "Jilian", "Ben", "Connor", "Nate", "Stephen")
+                        ),
                     checkboxInput("terms", "I agree to terms"),
                     actionButton("submit", "Submit", class = "btn-primary")
                 )
