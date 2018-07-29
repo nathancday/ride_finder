@@ -10,14 +10,13 @@ This project is under active development, if you want to get involved here are s
 
 * UI Enhancements
     + Front-end wizard to make the app sparkle for users
-    + Shiny can incorpoate [custom CSS](https://shiny.rstudio.com/articles/css.html)
-    + And [custom Javascript](https://shiny.rstudio.com/articles/packaging-javascript.html)
+    + Shiny can incorporate [custom CSS](https://shiny.rstudio.com/articles/css.html)
+    + And also [custom Javascript](https://shiny.rstudio.com/articles/packaging-javascript.html)
 * Alternate distance calculations
-    + Get actual walking/biking distances to nearest transit access points
-    + The [Google Directions API](https://developers.google.com/maps/documentation/directions/start) has this
-    + Currently the app uses `library(googleway)` to interact with Google APIs
-    
-Notes:
-For security purposes this app does not include a Google API key. If it does I made a mistake and have sense inactivated the compromised key. If you are trying implement features like Google Directions, you will need a valid key of your own, which you can make [here](https://developers.google.com/maps/documentation/directions/get-api-key).
+    + Actual walking/biking distances to nearest transit access points (not a problem for JAUNT, but others maybe)
+    + Currently the app uses `library(googleway)` to interact with [Google APIs](https://developers.google.com/maps/documentation/directions/start)
+    + If you are trying implement new features like Google Directions, you will need a valid key of your own, which you can make [here](https://developers.google.com/maps/documentation/directions/get-api-key).
+* Backend data management
+    + "Ride requests" are being save to a [Google Sheet](https://docs.google.com/spreadsheets/d/1MNdUOi-l6A863MUwp-LwxxBEG71d4zf_NRJ-pTF5eh4/edit#gid=0) right now. Long term we will need a solution to pipe into JAUNT's existing systems.
 
 

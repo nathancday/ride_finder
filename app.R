@@ -13,8 +13,7 @@ library(magrittr)
 library(tidyverse)
 
 set_key(
-    # Sys.getenv("GOOGLE_API")
-    "AIzaSyCcaGQEFr1xHz0LJ7gCYhKQFbJo1rsJ79w"
+    Sys.getenv("GOOGLE_API")
     )
 
 
