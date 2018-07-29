@@ -2,14 +2,15 @@
 library(cpdcrimedata)
 library(shiny)
 library(DT)
-# library(gmapsdistance)
+# library(gmapsdistance) # not being utilized yet
 library(googleway)
 library(leaflet)
+library(lwgeom) # required for sf::st_distance()
 library(sf)
 library(magrittr)
 library(tidyverse)
 
-set_key(Sys.getenv("GOOGLE_API"))
+set_key(Sys.getenv(("your_key")))
 
 
 # respond on ENTER
