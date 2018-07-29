@@ -5,6 +5,7 @@ library(shinyjs)
 library(DT)
 # library(gmapsdistance) # not being utilized yet
 library(googleway)
+library(googlesheets)
 library(leaflet)
 library(lwgeom) # required for sf::st_distance()
 library(sf)
@@ -12,7 +13,8 @@ library(magrittr)
 library(tidyverse)
 
 set_key(
-    Sys.getenv("GOOGLE_API")
+    # Sys.getenv("GOOGLE_API")
+    "AIzaSyCcaGQEFr1xHz0LJ7gCYhKQFbJo1rsJ79w"
     )
 
 
@@ -71,7 +73,8 @@ ui <- fluidPage(
                     dateInput("ride_date", "Pick up date"),
                     selectizeInput(
                         "fav_driver",
-                        c("Taylor", "Lucas", "Jilian", "Ben", "Connor", "Nate", "Stephen")
+                        "Favorite team-member:",
+                        c("Lucas", "Taylor", "Stephen", "Jilian", "Ben", "Connor", "Nate")
                         ),
                     checkboxInput("terms", "I agree to terms"),
                     actionButton("submit", "Submit", class = "btn-primary")
@@ -85,6 +88,7 @@ ui <- fluidPage(
             )  
         ),
         mainPanel(
+            textOutput("tst"),
             DTOutput("routes"),
             leafletOutput("map", height = 600)
         )
@@ -194,10 +198,13 @@ server <- function(input, output, session) {
            fitBounds(view[1], view[2], view[3], view[4])
        
        shinyjs::show("request")
+       shinyjs::hide("thankyou_msg")
+       shinyjs::hide("form")
    })
    
    observeEvent(input[["request_btn"]], {
-       shinyjs::show("form")
+       show("form")
+       hide("request")
    })
    
    output$chosen_route <- renderText({
@@ -212,23 +219,23 @@ server <- function(input, output, session) {
    }
    
    formData <- reactive({
-       data <- sapply(fieldsAll, function(x) input[[x]])
+       data <- map_chr(fieldsAll, ~ input[[.]]) %>%
+           set_names(fieldsAll)
        data <- c(data,
+                 # add in current app info
                  location = values$geocode$formatted_address,
                  route = values$routes$route_name[input$routes_rows_selected],
                  timestamp = epochTime())
-       t(data)
+       data
    })
    
    humanTime <- function() format(Sys.time(), "%Y%m%d-%H%M%OS")
    
    saveData <- function(data) {
-       fileName <- sprintf("%s_%s.csv",
-                           humanTime(),
-                           digest::digest(data))
-       
-       write.csv(x = data, file = file.path(responsesDir, fileName),
-                 row.names = FALSE, quote = TRUE)
+       # Google Sheet seciont
+       # https://shiny.rstudio.com/articles/persistent-data-storage.html#gsheets
+       sheet <- gs_title("Ride_requests")
+       gs_add_row(sheet, input = data)   
    }
    
    # action to take when submit button is pressed
@@ -237,11 +244,13 @@ server <- function(input, output, session) {
        shinyjs::reset("form")
        shinyjs::hide("form")
        shinyjs::show("thankyou_msg")
+       hide("request")
    })
    observeEvent(input$submit_another, {
        shinyjs::show("form")
        shinyjs::hide("thankyou_msg")
    })   
+   renderText({input$ride_date})
 }
 
 # Run the application 
