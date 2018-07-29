@@ -11,7 +11,7 @@ library(sf)
 library(magrittr)
 library(tidyverse)
 
-set_key(Sys.getenv(("your_key")))
+set_key("AIzaSyAZNIEddNLkNxS6Fy1CMiZaDDr4lf3yOOY")
 
 
 # respond on ENTER
@@ -44,15 +44,21 @@ ui <- fluidPage(
     
     sidebarLayout(
         sidebarPanel(
-            h4("Welcome to Ride-Finder 🚌"),
-            h5("Where are you? 📍 (Press ENTER to search)"),
+            h2("Welcome to Ride-Finder 🚌"),
+            h4("Where are you? 📍 (Press ENTER to search)"),
             textInput("address", NULL, "Louisa Airport"),
-            h5("This is where the computer thinks you are:"),
+            h4("This is where the computer thinks you are:"),
             textOutput("location"),
-            h5("So the closest service area to you is:"),
+            h4("So the closest service area to you is:"),
             textOutput("closest_access"),
-            h5("Selected route:"),
+            h4("Selected route:"),
             textOutput("chosen_route"),
+            shinyjs::hidden(
+                div(id = "request",
+                    style = "margin-top:20px;",
+                    actionButton("request_btn", "Request a pick up", class = "btn-danger")
+                )
+            ),
             shinyjs::hidden(
                 wellPanel(
                     id = "form",
@@ -61,13 +67,13 @@ ui <- fluidPage(
                     # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/#build-inputs
                     textInput("email", "Email"),
                     dateInput("ride_date", "Pick up date"),
-                    checkboxInput("terms", "I agree to no terms"),
+                    checkboxInput("terms", "I agree to terms"),
                     actionButton("submit", "Submit", class = "btn-primary")
                 )
             ),
             shinyjs::hidden(
                 div(id = "thankyou_msg",
-                    h3("Thanks, your request was submitted successfully!"),
+                    h4("Thanks! Our team will be in touch to confirm your trip."),
                     actionLink("submit_another", "Submit another request")
                 )
             )  
@@ -84,6 +90,7 @@ server <- function(input, output, session) {
     
    values <- reactiveValues()
    
+   # * geocode user input ---------------
    observeEvent(input[["keyPressed"]], {
        
        values$address <- input$address
@@ -103,13 +110,14 @@ server <- function(input, output, session) {
            st_as_sf(coords = c("lon", "lat"), crs = st_crs(jaunt_sf))
    })
    
+   # start the map with tiles; not sure if this is smart
    output$map <- renderLeaflet({
        req(values$sf)
        req(values$location)
        
        leaflet() %>%
            addProviderTiles(provider = "OpenStreetMap.HOT") %>%
-           addCircleMarkers(data = values$sf, radius = 20)
+           addCircleMarkers(data = values$sf, radius = 20, popup = "you")
    })
    
    observe({
@@ -130,14 +138,14 @@ server <- function(input, output, session) {
            unclass() %>%
            unname()
        
-       leafletProxy("map") %>%
-           clearMarkers() %>%
+       leaflet() %>%
+           addProviderTiles(provider = "OpenStreetMap.HOT") %>%
            addPolygons(data = values$closest, color = "red") %>%
-           addCircleMarkers(data = values$sf, radius = 20) %>%
+           addCircleMarkers(data = values$sf, radius = 20, popup = "you") %>%
            fitBounds(values$view[1], values$view[2], values$view[3], values$view[4])
    })
    
-   # * geo-coded location -------
+   # * guessed location -------
    output$location <- renderText({
        req(values$geocode)
        values$geocode$formatted_address
@@ -157,6 +165,7 @@ server <- function(input, output, session) {
                          options = list(dom = "t"))
    })
    
+   # watch DT for special id_rows_selected attribute
    observe({
        x <- input$routes_rows_selected
        req(input$routes_rows_selected)
@@ -168,16 +177,20 @@ server <- function(input, output, session) {
            unclass() %>%
            unname()
        
-       print(st_union(values$closest, dest))
+       print(values$closest)
        
        leafletProxy("map") %>%
            clearMarkers() %>%
            clearShapes() %>%
-           addPolygons(data = values$closest, color = "red") %>%
-           addPolygons(data = dest, color = "blue") %>%
-           addCircleMarkers(data = values$sf, radius = 20) %>%
+           addPolygons(data = values$closest, color = "red", label = ~name) %>%
+           addPolygons(data = dest, color = "blue", label = ~name) %>%
+           addCircleMarkers(data = values$sf, radius = 20, label = "you") %>%
            fitBounds(view[1], view[2], view[3], view[4])
        
+       shinyjs::show("request")
+   })
+   
+   observeEvent(input[["request_btn"]], {
        shinyjs::show("form")
    })
    
