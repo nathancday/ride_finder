@@ -1,6 +1,7 @@
 
 library(cpdcrimedata)
 library(shiny)
+library(shinyjs)
 library(DT)
 # library(gmapsdistance) # not being utilized yet
 library(googleway)
@@ -35,9 +36,9 @@ jaunt_sf <- readRDS("app_data.RDS")
 # make CRS match for distance calculations
 cat_sf %<>% st_set_crs(st_crs(jaunt_sf))
 
-
 # Define UI for application that draws a histogram
 ui <- fluidPage(
+    useShinyjs(),
                  
     tags$script(js),
     
@@ -52,7 +53,24 @@ ui <- fluidPage(
             textOutput("closest_access"),
             h5("Selected route:"),
             textOutput("chosen_route"),
-            textOutput("tst")
+            shinyjs::hidden(
+                wellPanel(
+                    id = "form",
+                    style = "margin-top:20px;",
+                    # google-ish form inputs
+                    # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/#build-inputs
+                    textInput("email", "Email"),
+                    dateInput("ride_date", "Pick up date"),
+                    checkboxInput("terms", "I agree to no terms"),
+                    actionButton("submit", "Submit", class = "btn-primary")
+                )
+            ),
+            shinyjs::hidden(
+                div(id = "thankyou_msg",
+                    h3("Thanks, your request was submitted successfully!"),
+                    actionLink("submit_another", "Submit another request")
+                )
+            )  
         ),
         mainPanel(
             DTOutput("routes"),
@@ -62,7 +80,7 @@ ui <- fluidPage(
     
 )
 
-server <- function(input, output) {
+server <- function(input, output, session) {
     
    values <- reactiveValues()
    
@@ -159,11 +177,52 @@ server <- function(input, output) {
            addPolygons(data = dest, color = "blue") %>%
            addCircleMarkers(data = values$sf, radius = 20) %>%
            fitBounds(view[1], view[2], view[3], view[4])
+       
+       shinyjs::show("form")
    })
    
    output$chosen_route <- renderText({
        values$routes$route_name[input$routes_rows_selected]
        })
+   
+   # form server logic
+   fieldsAll <- c("email", "ride_date", "terms")
+   responsesDir <- file.path("requests")
+   epochTime <- function() {
+       as.integer(Sys.time())
+   }
+   
+   formData <- reactive({
+       data <- sapply(fieldsAll, function(x) input[[x]])
+       data <- c(data,
+                 location = values$geocode$formatted_address,
+                 route = values$routes$route_name[input$routes_rows_selected],
+                 timestamp = epochTime())
+       t(data)
+   })
+   
+   humanTime <- function() format(Sys.time(), "%Y%m%d-%H%M%OS")
+   
+   saveData <- function(data) {
+       fileName <- sprintf("%s_%s.csv",
+                           humanTime(),
+                           digest::digest(data))
+       
+       write.csv(x = data, file = file.path(responsesDir, fileName),
+                 row.names = FALSE, quote = TRUE)
+   }
+   
+   # action to take when submit button is pressed
+   observeEvent(input$submit, {
+       saveData(formData())
+       shinyjs::reset("form")
+       shinyjs::hide("form")
+       shinyjs::show("thankyou_msg")
+   })
+   observeEvent(input$submit_another, {
+       shinyjs::show("form")
+       shinyjs::hide("thankyou_msg")
+   })   
 }
 
 # Run the application 
