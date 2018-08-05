@@ -1,3 +1,6 @@
+# This app needs library(shiny) from "nathancday/shiny" fork (exposes datepicker params)
+
+# devtools::install("~/shiny/", dep = F)
 
 library(cpdcrimedata)
 library(shiny)
@@ -69,11 +72,15 @@ ui <- fluidPage(
                     # google-ish form inputs
                     # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/#build-inputs
                     textInput("email", "Email"),
-                    dateInput("ride_date", "Pick up date"),
+                    uiOutput("available_dates"),
+                    # dateInput("ride_date", "Pick up date",
+                    #           datesdisabled = "2018-12-25",
+                    #           daysofweekdisabled = NULL
+                    #           ),
                     selectizeInput(
-                        "fav_driver",
-                        "Favorite team-member:",
-                        c("Lucas", "Taylor", "Stephen", "Jilian", "Ben", "Connor", "Nate")
+                        "prefered_contact",
+                        "Prefered contact method:",
+                        c("Email", "Phone", "Text")
                         ),
                     checkboxInput("terms", "I agree to terms"),
                     actionButton("submit", "Submit", class = "btn-primary")
@@ -102,9 +109,7 @@ server <- function(input, output, session) {
    # * geocode user input ---------------
    observeEvent(input[["keyPressed"]], {
        
-       values$address <- input$address
-       
-       values$location <- values$address %>%
+       values$location <- input$address %>%
            paste("VA")
        
        values$geocode <- tibble(address = values$location) %>%
@@ -166,9 +171,10 @@ server <- function(input, output, session) {
        
        values$routes <- values$closest %>%
            unnest() %>%
-           select(route_name, destination = to_name, contains("hours"))
+           select(route_name, destination = to_name, inservice, disabled, contains("hours"))
        
        st_set_geometry(values$routes, NULL) %>%
+           select(-disabled) %>%
            DT::datatable(caption = "Available routes:",
                          selection = list(mode = "single", selected = 1),
                          options = list(dom = "t"))
@@ -180,13 +186,22 @@ server <- function(input, output, session) {
        req(input$routes_rows_selected)
        
        dest <- jaunt_sf[jaunt_sf$name == values$routes$destination[x],]
+       days_disabled <- unlist(values$routes$disabled[x])
+       print(days_disabled)
+       
+       output$available_dates <- renderUI({
+           tagList(
+               dateInput("ride_date", "Pick up date",
+                         datesdisabled = "2018-12-25",
+                         daysofweekdisabled = days_disabled
+                         )
+           )
+       })
        
        view <- st_union(isolate(values$closest), dest) %>%
            st_bbox() %>%
            unclass() %>%
            unname()
-       
-       print(values$closest)
        
        leafletProxy("map") %>%
            clearMarkers() %>%
