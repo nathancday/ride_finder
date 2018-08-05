@@ -5,6 +5,11 @@
 #' date: 2018-07-28
 #' -----
 
+library(sf)
+library(magrittr)
+library(tidyverse)
+
+
 # JAUNT polygon data already in app
 sf <- st_read("https://raw.githubusercontent.com/Smart-Cville/CID-2018-Regional-Transit-Challenge/master/data/doc.kml",
                     stringsAsFactors = F) %>%
@@ -61,10 +66,22 @@ rules %<>%
 head(rules)
 
 ### Weekly Schedule ---------------------------------------------------------
+options(scipen = 5)
 
-rules$WeekTemplate %>%
-    nchar()
-# confusing, asked Stephen 2018-07-28
+# format for Bootstrap Datepicks now
+rules$disabled <- rules$WeekTemplate %>%
+    str_pad(7, "left", "0") %>% # excel strips leading 0's
+    str_split("") %>%
+    map(~ set_names(., c(0:6 )) %>%
+            keep(~. == "0") %>%
+            names() )
+
+dc <- c("S", "M", "T", "W", "Th", "F", "Sa") %>%
+    set_names(0:6)
+
+rules$inservice <- map_chr(rules$disabled, ~ dc[.] %>%
+                           setdiff(dc, .) %>%
+                           paste(collapse = ",") )
 
 ### Finalize ------------------------------------------------------------
 
@@ -74,6 +91,8 @@ rules %<>%
     select(route_name = ParaServiceDescription,
            name = FromPolyName,
            to_name = ToPolyName,
+           disabled,
+           inservice,
            contains("Time")) %>%
     unite(morning_hours, c("FromTime", "ToTime"), sep = "-") %>%
     unite(evening_hours, c("ReverseFromTime", "ReverseToTime"), sep = "-")
