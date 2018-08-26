@@ -17,9 +17,8 @@ library(magrittr)
 library(tidyverse)
 
 set_key(
-    "AIzaSyA8tvNo3lTbu2BrvuHbzETbo76uhEgKke4"
+    "AIzaSyDzdGdfW6JDKTBgQRLzhSp1IIseVJVCWy8"
     )
-
 
 # respond on ENTER
 # https://stackoverflow.com/questions/31415301/shiny-responds-to-enter
@@ -42,10 +41,6 @@ jaunt_sf <- readRDS("app_data.RDS")
 
 # make CRS match for distance calculations
 cat_sf %<>% st_set_crs(st_crs(jaunt_sf))
-
-
-
-
 
 #### UI ------------------------------------------------------------------
 
@@ -114,6 +109,8 @@ ui <- fluidPage(
         )
     )
 )
+
+## SERVER -------------------------------------------------------------------
 
 server <- function(input, output, session) {
     
@@ -201,7 +198,6 @@ server <- function(input, output, session) {
        
        dest <- jaunt_sf[jaunt_sf$name == values$routes$destination[x],]
        days_disabled <- unlist(values$routes$disabled[x])
-       print(days_disabled)
        
        output$available_dates <- renderUI({
            tagList(
@@ -283,4 +279,3 @@ server <- function(input, output, session) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
