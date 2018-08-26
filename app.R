@@ -1,6 +1,7 @@
 # This app needs library(shiny) from "nathancday/shiny" fork (exposes datepicker params)
-
-# devtools::install("~/shiny/", dep = F)
+devtools::install_github("nathancday/shiny", dep = F) # 'stable'
+# The PR #2147 has been merged to master, but current build there is failing
+# so until it recovers run off my fork with new functionality
 
 library(cpdcrimedata)
 library(shiny)
@@ -16,7 +17,7 @@ library(magrittr)
 library(tidyverse)
 
 set_key(
-    Sys.getenv("GOOGLE_API")
+    "AIzaSyA8tvNo3lTbu2BrvuHbzETbo76uhEgKke4"
     )
 
 
@@ -42,6 +43,12 @@ jaunt_sf <- readRDS("app_data.RDS")
 # make CRS match for distance calculations
 cat_sf %<>% st_set_crs(st_crs(jaunt_sf))
 
+
+
+
+
+#### UI ------------------------------------------------------------------
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
     useShinyjs(),
@@ -51,14 +58,21 @@ ui <- fluidPage(
     sidebarLayout(
         sidebarPanel(
             h2("Welcome to Ride-Finder 🚌"),
-            h4("Where are you? 📍 (Press ENTER to search)"),
-            textInput("address", NULL, "Louisa Airport"),
-            h4("This is where the computer thinks you are:"),
-            textOutput("location"),
-            h4("So the closest service area to you is:"),
-            textOutput("closest_access"),
-            h4("Selected route:"),
-            textOutput("chosen_route"),
+            h4("Where are you? 📍"),
+            splitLayout(cellWidths = c("75%", "25%"),
+                        textInput("address", NULL, "Louisa Airport"),
+                        actionButton("address_btn", "Check")
+            ),
+            hidden(
+                div(id = "search_results",
+                    h4("This is where the computer thinks you are:"),
+                    textOutput("location"),
+                    h4("So the closest service area to you is:"),
+                    textOutput("closest_access"),
+                    h4("Selected route:"),
+                    textOutput("chosen_route")
+                )
+            ),
             shinyjs::hidden(
                 div(id = "request",
                     style = "margin-top:20px;",
@@ -73,10 +87,10 @@ ui <- fluidPage(
                     # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/#build-inputs
                     textInput("email", "Email"),
                     uiOutput("available_dates"),
-                    # dateInput("ride_date", "Pick up date",
-                    #           datesdisabled = "2018-12-25",
-                    #           daysofweekdisabled = NULL
-                    #           ),
+                    dateInput("ride_date", "Pick up date",
+                              datesdisabled = "2018-12-25", # just to prove a point
+                              daysofweekdisabled = NULL
+                              ),
                     selectizeInput(
                         "prefered_contact",
                         "Prefered contact method:",
@@ -91,7 +105,7 @@ ui <- fluidPage(
                     h4("Thanks! Our team will be in touch to confirm your trip."),
                     actionLink("submit_another", "Submit another request")
                 )
-            )  
+            )
         ),
         mainPanel(
             textOutput("tst"),
@@ -99,7 +113,6 @@ ui <- fluidPage(
             leafletOutput("map", height = 600)
         )
     )
-    
 )
 
 server <- function(input, output, session) {
@@ -107,7 +120,7 @@ server <- function(input, output, session) {
    values <- reactiveValues()
    
    # * geocode user input ---------------
-   observeEvent(input[["keyPressed"]], {
+   observeEvent(c(input[["keyPressed"]], input[["address_btn"]]), {
        
        values$location <- input$address %>%
            paste("VA")
@@ -122,6 +135,8 @@ server <- function(input, output, session) {
        values$sf <- values$geocode %>%
            mutate_at(vars(lon, lat), as.numeric) %>%
            st_as_sf(coords = c("lon", "lat"), crs = st_crs(jaunt_sf))
+       
+       show("search_results")
    })
    
    # start the map with tiles; not sure if this is smart
@@ -179,7 +194,6 @@ server <- function(input, output, session) {
                          selection = list(mode = "single", selected = 1),
                          options = list(dom = "t"))
    })
-   
    # watch DT for special id_rows_selected attribute
    observe({
        x <- input$routes_rows_selected
