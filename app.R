@@ -1,11 +1,16 @@
 # This app needs library(shiny) from "nathancday/shiny" fork (exposes datepicker params)
-devtools::install_github("nathancday/shiny", dep = F) # 'stable'
+# devtools::install_github("nathancday/shiny", dep = F) # 'stable'
 # The PR #2147 has been merged to master, but current build there is failing
 # so until it recovers run off my fork with new functionality
+
+# mobile friendly miniUI
+# devtools::install_github("rstudio/miniui")
+
 
 library(cpdcrimedata)
 library(shiny)
 library(shinyjs)
+library(miniUI)
 library(DT)
 # library(gmapsdistance) # not being utilized yet
 library(googleway)
@@ -44,69 +49,56 @@ cat_sf %<>% st_set_crs(st_crs(jaunt_sf))
 
 #### UI ------------------------------------------------------------------
 
-# Define UI for application that draws a histogram
-ui <- fluidPage(
+ui <- miniPage(
     useShinyjs(),
-                 
     tags$script(js),
     
-    sidebarLayout(
-        sidebarPanel(
-            h2("Welcome to Ride-Finder 🚌"),
-            h4("Where are you? 📍"),
-            splitLayout(cellWidths = c("75%", "25%"),
-                        textInput("address", NULL, "Louisa Airport"),
-                        actionButton("address_btn", "Check")
-            ),
-            hidden(
-                div(id = "search_results",
-                    h4("This is where the computer thinks you are:"),
-                    textOutput("location"),
-                    h4("So the closest service area to you is:"),
-                    textOutput("closest_access"),
-                    h4("Selected route:"),
-                    textOutput("chosen_route")
-                )
-            ),
-            shinyjs::hidden(
-                div(id = "request",
-                    style = "margin-top:20px;",
-                    actionButton("request_btn", "Request a pick up", class = "btn-danger btn-block")
-                )
-            ),
-            shinyjs::hidden(
-                wellPanel(
-                    id = "form",
-                    style = "margin-top:20px;",
-                    # google-ish form inputs
-                    # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/#build-inputs
-                    textInput("email", "Email"),
-                    uiOutput("available_dates"),
-                    dateInput("ride_date", "Pick up date",
-                              datesdisabled = "2018-12-25", # just to prove a point
-                              daysofweekdisabled = NULL
-                              ),
-                    selectizeInput(
-                        "prefered_contact",
-                        "Prefered contact method:",
-                        c("Email", "Phone", "Text")
-                        ),
+    miniTitleBar("Welcome to Ride-Finder 🚌"),
+    miniContentPanel(
+        fillRow(
+            textInput("address", NULL, NULL, placeholder = "Where are you?", width = "90%"),
+            actionButton("address_btn", "📍"),
+            height = "50px",
+            flex = c(6,1)
+        ),
+        shinyjs::hidden(
+            div(id = "request",
+                style = "margin-top:5px;",
+                actionButton("request_btn", "Request a pick up", class = "btn-danger btn-block")
+            )
+        ),
+        # * request form --------
+        shinyjs::hidden(
+            wellPanel(
+                id = "form",
+                style = "margin-top:5px;",
+                # google-ish form inputs
+                # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/#build-inputs
+                textInput("email", "Email"),
+                uiOutput("available_dates"),
+                selectizeInput(
+                    "prefered_contact",
+                    "Prefered contact method:",
+                    c("Email", "Phone", "Text")
+                    ),
+                splitLayout(
                     checkboxInput("terms", "I agree to terms"),
                     actionButton("submit", "Submit", class = "btn-primary")
                 )
-            ),
-            shinyjs::hidden(
-                div(id = "thankyou_msg",
-                    h4("Thanks! Our team will be in touch to confirm your trip."),
-                    actionLink("submit_another", "Submit another request")
-                )
             )
         ),
-        mainPanel(
-            textOutput("tst"),
-            DTOutput("routes"),
-            leafletOutput("map", height = 600)
-        )
+        shinyjs::hidden(
+            div(id = "thankyou_msg",
+                h4("Thanks! Our team will be in touch to confirm your trip."),
+                actionLink("submit_another", "Submit another request")
+            )
+        ),
+        div(id = "table_map",
+            style = "margin:auto;
+                     width:95%;",
+            DTOutput("routes", width = "90%"),
+            leafletOutput("map", height = "200px", width = "90%")
+            )
     )
 )
 
@@ -118,6 +110,8 @@ server <- function(input, output, session) {
    
    # * geocode user input ---------------
    observeEvent(c(input[["keyPressed"]], input[["address_btn"]]), {
+       
+       print("Button pressed.")
        
        values$location <- input$address %>%
            paste("VA")
@@ -133,8 +127,10 @@ server <- function(input, output, session) {
            mutate_at(vars(lon, lat), as.numeric) %>%
            st_as_sf(coords = c("lon", "lat"), crs = st_crs(jaunt_sf))
        
-       show("search_results")
-   })
+       shinyjs::show("request")
+       
+       # show("search_results")
+   }, ignoreInit = T) 
    
    # start the map with tiles; not sure if this is smart
    output$map <- renderLeaflet({
@@ -155,9 +151,9 @@ server <- function(input, output, session) {
        
        values$closest <- jaunt_sf[jaunt_min_idx,]
        
-       output$closest_access <- renderText({
-           values$closest$name
-       })
+       # output$closest_access <- renderText({
+       #     values$closest$name
+       # })
        
        values$view <- values$closest %>%
            st_bbox() %>%
@@ -172,10 +168,10 @@ server <- function(input, output, session) {
    })
    
    # * guessed location -------
-   output$location <- renderText({
-       req(values$geocode)
-       values$geocode$formatted_address
-       })
+   # output$location <- renderText({
+   #     req(values$geocode)
+   #     values$geocode$formatted_address
+   #     })
    
    # * available routes table -----
    output$routes <- renderDT({
@@ -187,9 +183,11 @@ server <- function(input, output, session) {
        
        st_set_geometry(values$routes, NULL) %>%
            select(-disabled) %>%
-           DT::datatable(caption = "Available routes:",
-                         selection = list(mode = "single", selected = 1),
-                         options = list(dom = "t"))
+           DT::datatable(selection = list(mode = "single", selected = 1),
+                         options = list(dom = "t"),
+                         rownames = F,
+                         fillContainer = T
+                         )
    })
    # watch DT for special id_rows_selected attribute
    observe({
@@ -273,8 +271,7 @@ server <- function(input, output, session) {
    observeEvent(input$submit_another, {
        shinyjs::show("form")
        shinyjs::hide("thankyou_msg")
-   })   
-   renderText({input$ride_date})
+   })
 }
 
 # Run the application 
