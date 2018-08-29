@@ -1,0 +1,36 @@
+@import url("//fonts.googleapis.com/css?family=Lobster|Cabin:400,700");
+@import url('https://fonts.googleapis.com/css?family=Orbitron');
+
+@media screen and (max-width: 767px) {
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"] {
+    font-size: 16px;
+  }
+
+  input[type="text"] {
+    font-size: 20px;
+  }
+
+}
+input[type="number"],
+input[type="email"],
+input[type="tel"],
+input[type="password"] {
+  font-size: 16px;
+}
+input[type="text"] {
+  font-size: 20px;
+}
+
+h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 500;
+  line-height: 1.1;
+  color: #ad1d28;
+}
+
+body {
+  background-color: #fff;
+}

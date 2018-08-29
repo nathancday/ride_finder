@@ -22,7 +22,7 @@ library(magrittr)
 library(tidyverse)
 
 set_key(
-    "AIzaSyDzdGdfW6JDKTBgQRLzhSp1IIseVJVCWy8"
+    "AIzaSyBkitwiCwa_28l9IggIsuAyXb0uHkCZ2f4"
     )
 
 # respond on ENTER
@@ -50,57 +50,59 @@ cat_sf %<>% st_set_crs(st_crs(jaunt_sf))
 #### UI ------------------------------------------------------------------
 
 ui <- miniPage(
-    useShinyjs(),
-    tags$script(js),
-    
-    miniTitleBar("Welcome to Ride-Finder 🚌"),
-    miniContentPanel(
-        fillRow(
-            textInput("address", NULL, NULL, placeholder = "Where are you?", width = "100%"),
-            actionButton("address_btn", "📍", width = "100%"),
-            height = "50px",
-            flex = c(8,1)
-        ),
-        shinyjs::hidden(
-            div(id = "request",
-                style = "margin-top:5px;",
-                actionButton("request_btn", "Request a pick up", class = "btn-danger btn-block")
-            )
-        ),
-        div(id = "table_map",
-            style = "margin:auto;
-                     width:90%;",
-            DTOutput("routes"),
-            # * request form --------
-            shinyjs::hidden(
-                wellPanel(
-                    id = "form",
-                    style = "margin-top:5px;",
-                    # google-ish form inputs
-                    # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/#build-inputs
-                    textInput("email", "Email"),
-                    uiOutput("available_dates"),
-                    selectizeInput(
-                        "prefered_contact",
-                        "Prefered contact method:",
-                        c("Email", "Phone", "Text")
-                    ),
-                    splitLayout(
-                        checkboxInput("terms", "I agree to terms"),
-                        actionButton("submit", "Submit", class = "btn-primary", width = "100%"),
-                        cellWidths = c("65%", "35%")
-                    )
-                )
+  useShinyjs(),
+  tags$script(js),
+  includeCSS("styles.css"),
+  
+  miniTitleBar("Welcome to Ride-Finder 🚌"),
+  miniContentPanel(
+    fillRow(
+        textInput("address", NULL, NULL, placeholder = "Where are you?", width = "100%"),
+        actionButton("address_btn", "📍", width = "100%"),
+        height = "50px",
+        flex = c(6,1)
+    ),
+    shinyjs::hidden(
+        div(id = "request",
+            style = "margin-top:5px;",
+            actionButton("request_btn", "Request a pick up", class = "btn-danger btn-block")
+        )
+    ),
+
+    # * request form --------
+    shinyjs::hidden(
+        wellPanel(
+            id = "form",
+            style = "margin-top:5px;",
+            # google-ish form inputs
+            # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/#build-inputs
+            textInput("email", "Email"),
+            uiOutput("available_dates"),
+            selectizeInput(
+                "prefered_contact",
+                "Prefered contact method:",
+                c("Email", "Phone", "Text")
             ),
-            shinyjs::hidden(
-                div(id = "thankyou_msg",
-                    h4("Thanks! Our team will be in touch to confirm your trip."),
-                    actionLink("submit_another", "Submit another request")
-                )
-            ),
-            leafletOutput("map", height = "300px")
+            splitLayout(
+                checkboxInput("terms", "I agree to terms"),
+                actionButton("submit", "Submit", class = "btn-primary", width = "100%"),
+                cellWidths = c("65%", "35%")
             )
-    )
+        )
+    ),
+    shinyjs::hidden(
+        div(id = "thankyou_msg",
+            h4("Thanks! Our team will be in touch to confirm your trip."),
+            actionLink("submit_another", "Submit another request")
+        )
+    ),
+    div(id = "table_map",
+        style = "margin:auto;
+                 width:90%;",
+        DTOutput("routes"),
+        leafletOutput("map", height = "300px")
+        )
+  )
 )
 
 ## SERVER -------------------------------------------------------------------
